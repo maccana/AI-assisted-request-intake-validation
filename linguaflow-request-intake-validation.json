@@ -1,0 +1,459 @@
+{
+  "name": "LinguaFlow — AI-Assisted Translation Request Intake & Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "28ce5f2d-12f7-4d23-b3e6-b8e86e379379",
+              "leftValue": "={{ $json.job.service_type }}",
+              "rightValue": "not empty/not null",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "94a1c303-68bf-4024-ac32-19dd8dc83930",
+              "leftValue": "={{ $json.job.source_language }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a6ddf731-bae1-4b3c-8b74-3226c995a3e9",
+              "leftValue": "={{ $json.job.service_type !== 'translation' || $json.job.target_language }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        336
+      ],
+      "id": "cbdd6152-2645-43e7-8dee-b7e3490131ac",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "da19616c-544e-456a-924c-97703d653d48",
+              "name": "request_text",
+              "value": "={{ $json.body.subject + \"\\n\\n\" + $json.body.body }}",
+              "type": "string"
+            },
+            {
+              "id": "3f2440a1-e31b-489c-a3a1-9fab5f492dbb",
+              "name": "sender_email",
+              "value": "={{ $json.body.sender_email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        640,
+        336
+      ],
+      "id": "4644a80d-add2-48a8-81a7-c87ff38ef99f",
+      "name": "Prepare Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8ff6eeca-b68e-4eff-abc6-db922b6d5ce7",
+              "name": "job",
+              "value": "={{ JSON.parse($json.message.content) }}",
+              "type": "object"
+            },
+            {
+              "id": "a48cc9c1-1e35-4121-918e-4d03e324a352",
+              "name": "=request_text",
+              "value": "={{ $('Prepare Request').item.json.request_text }}",
+              "type": "string"
+            },
+            {
+              "id": "a7fdf18a-fe0f-4778-a4a3-a62b3d0a4ec4",
+              "name": "sender_email",
+              "value": "={{ $('Prepare Request').item.json.sender_email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1216,
+        336
+      ],
+      "id": "bb38d522-77ad-4cb7-a969-1cd32462d8ea",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "linguaflow-intake",
+        "options": {}
+      },
+      "id": "8aa3106a-48cb-4652-b8fb-e8d60678d6c4",
+      "name": "Incoming Translation Job Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        416,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "llama3.1:8b",
+          "mode": "list",
+          "cachedResultName": "llama3.1:8b"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extract the following information from this translation request.\n\nYour entire response must be a single valid JSON object.\n\nDo not write any text before or after the JSON.\nDo not use Markdown code fences.\nDo not explain your answer.\n\n{\n  \"service_type\": null,\n  \"source_language\": null,\n  \"target_language\": null,\n  \"deadline\": null,\n  \"deadline_text\": null,\n  \"urgency\": \"normal\",\n  \"quote_requested\": false,\n  \"file_or_order_number\": null,\n  \"billing_information\": null,\n  \"additional_instructions\": null\n}\n\nRules:\n- service_type must identify the requested service. If the request explicitly says \"translation\", set service_type to \"translation\". Other valid values are \"adaptation\", \"copyediting\", and \"proofreading\". Do not leave service_type null when the requested service is explicitly stated.\nIf the requested service is not explicitly stated or cannot be identified\nwith high confidence, return null. Never guess the service type from\ngeneral descriptions such as \"needs attention\" or \"before publication\".\n- Identify the service the client explicitly requests, not the service you think they probably need.\n- Set service_type to \"translation\", \"adaptation\", \"copyediting\", or \"proofreading\" only when the client explicitly requests that service or uses an unmistakable equivalent.\n**Strict service classification:** Do not infer the requested service from the source language, target audience, desired outcome, or the fact that a quote is requested. If the client does not explicitly request translation, adaptation, copyediting, or proofreading (or an unmistakable equivalent), return `null` for `service_type`. For example, a French document intended for English-speaking clients does not, by itself, mean translation was requested.\n- Mentioning different languages, a target audience, publication, or a desired outcome does not by itself establish the requested service.\n- If the requested service is unclear or not explicitly stated, return null.\n- Use null when information is not provided.\n- Do not invent information.\n- urgency should be \"urgent\" only when the request explicitly indicates urgency; otherwise use \"normal\".\n- Extract the deadline as an ISO 8601 date and time in deadline.\n- Preserve the client's original wording for the deadline in deadline_text.\n- Do not convert the stated local time to another timezone.\n- Use null when no deadline is provided.\n- quote_requested should be true only when a quote is requested.\n- Return JSON only. No explanation or markdown.\n\nTranslation request:\n{{ $json.request_text }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        864,
+        336
+      ],
+      "id": "bff3b17f-671d-48e0-a258-9f4689b7d319",
+      "name": "Extract Job Details"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "RESELECT_LINGUAFLOW_JOBS_TABLE_AFTER_IMPORT",
+          "mode": "list",
+          "cachedResultName": "LinguaFlowJobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "quote_requested": "={{ $json.job.quote_requested }}",
+            "service_type": "={{ $json.job.service_type }}",
+            "source_language": "={{ $json.job.source_language }}",
+            "target_language": "={{ $json.job.target_language }}",
+            "deadline": "={{ $json.job.deadline }}",
+            "urgency": "={{ $json.job.urgency }}",
+            "file_or_order_number": "={{ $json.job.file_or_order_number }}",
+            "billing_information": "={{ $json.job.billing_information }}",
+            "additional_instruction": "={{ $json.job.additional_instructions }}",
+            "request_text": "={{ $json.request_text }}",
+            "sender_email": "={{ $json.sender_email }}",
+            "deadline_text": "={{ $json.job.deadline_text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_type",
+              "displayName": "service_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source_language",
+              "displayName": "source_language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "target_language",
+              "displayName": "target_language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "deadline",
+              "displayName": "deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "quote_requested",
+              "displayName": "quote_requested",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "file_or_order_number",
+              "displayName": "file_or_order_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "billing_information",
+              "displayName": "billing_information",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "additional_instruction",
+              "displayName": "additional_instruction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "request_text",
+              "displayName": "request_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sender_email",
+              "displayName": "sender_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "deadline_text",
+              "displayName": "deadline_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1664,
+        240
+      ],
+      "id": "b15ea7ad-f545-427d-82d3-51f09baf44da",
+      "name": "Save Valid Job"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "RESELECT_LINGUAFLOW_REVIEW_TABLE_AFTER_IMPORT",
+          "mode": "list",
+          "cachedResultName": "LinguaFlowReview"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_text": "={{ $('Prepare Request').item.json.request_text }}",
+            "review_reason": "Missing required information"
+          },
+          "matchingColumns": [
+            "request_text"
+          ],
+          "schema": [
+            {
+              "id": "request_text",
+              "displayName": "request_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "review_reason",
+              "displayName": "review_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1664,
+        432
+      ],
+      "id": "75d815c8-fdd4-4e35-97ed-b7f3df1b3825",
+      "name": "Send to Review"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Save Valid Job",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Job Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incoming Translation Job Request": {
+      "main": [
+        [
+          {
+            "node": "Prepare Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Job Details": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Valid Job": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {},
+  "nodeGroups": [],
+  "tags": []
+}
