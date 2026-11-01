@@ -50,7 +50,29 @@ The workflow follows these steps:
 
 The initial prototype is implemented, with the core intake, extraction, validation, and routing workflow in place.
 
-Further work will focus on documenting test results, improving reproducibility, and evaluating the reliability of AI-based extraction and validation.
+Two end-to-end test scenarios have been completed successfully:
+
+- A complete translation request was extracted and saved to the valid jobs table.
+- A translation request missing its target language was routed to the manual-review table rather than the valid jobs table.
+
+Further work will focus on expanding test coverage, improving reproducibility, and evaluating the reliability of AI-based extraction and validation.
+
+## Testing
+
+The repository includes sample JSON payloads and documentation for reproducing the two completed test scenarios.
+
+**Test cases:**
+
+1. **Valid translation request:** Verifies that a complete English-to-Canadian-French request is extracted and saved to the valid jobs table.
+2. **Missing target language:** Verifies that a translation request without a target language is routed to manual review.
+
+Test resources:
+
+- [Sample test payloads](tests/payloads/)
+- [Test instructions and scenarios](tests/README.md)
+- [Expected results and verification](tests/expected-results.md)
+
+Both scenarios have been executed successfully using the current workflow configuration. See the test documentation for the payloads, expected results, and verification details.
 
 ## Privacy and Security
 
@@ -71,7 +93,7 @@ Before running LinguaFlow, ensure you have the following installed and running:
 - **Ollama** — runs the local language model.
 - **Llama 3.1 8B** — the model used for extracting structured information from requests.
 
-Ollama is available locally at `http://localhost:11434/`
+Ollama is available locally at `http://localhost:11434/`.
 
 The n8n workflow connects to Ollama through Docker Desktop using `http://host.docker.internal:11434/`.
 
@@ -87,7 +109,7 @@ ollama list
 
 If the model is not listed, download it using:
 
-```basg
+```bash
 ollama pull llama3.1:8b
 ```
 
@@ -101,11 +123,18 @@ ollama pull llama3.1:8b
 
 **Note:** The imported workflow requires configuration before it can run. Verify the credential settings and data table references in your n8n instance.
 
-### Testing the Workflow
+### Running a Test
 
-1. Activate the workflow in n8n or use its test mode, as appropriate.
-2. Send a sample translation request to the workflow's webhook using Postman.
-3. Check the `LinguaFlowJobs` data table for valid requests.
-4. Check the `LinguaFlowReview` data table for requests that are missing required information.
+1. Start n8n and Ollama.
+2. Open the imported LinguaFlow workflow.
+3. Use the webhook test listener or activate the workflow, as appropriate.
+4. Send one of the sample JSON payloads using Postman.
+5. Inspect the n8n execution to confirm which route the request followed.
+6. Check the corresponding data table:
+   - `LinguaFlowJobs` for valid requests.
+   - `LinguaFlowReview` for requests requiring manual review.
 
-Use fictional request data when testing. Confirm that complete requests are saved as jobs and incomplete requests are routed for manual review.
+The current webhook expects a flat JSON payload containing `subject`, `sender_email`, and `message`.
+
+Use fictional request data when testing. For detailed instructions and expected outcomes, see the [test documentation](tests/README.md).
+
