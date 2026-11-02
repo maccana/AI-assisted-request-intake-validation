@@ -93,10 +93,6 @@ Before running LinguaFlow, ensure you have the following installed and running:
 - **Ollama** — runs the local language model.
 - **Llama 3.1 8B** — the model used for extracting structured information from requests.
 
-Ollama is available locally at `http://localhost:11434/`.
-
-The n8n workflow connects to Ollama through Docker Desktop using `http://host.docker.internal:11434/`.
-
 ### Model Configuration
 
 LinguaFlow uses the `llama3.1:8b` model through Ollama. Ensure the model is available locally before running the workflow.
@@ -112,6 +108,20 @@ If the model is not listed, download it using:
 ```bash
 ollama pull llama3.1:8b
 ```
+
+### Ollama Connection Configuration
+
+Users must provide their own running Ollama instance and configure an appropriate Ollama credential in n8n.
+
+The workflow's Ollama connection must point to an address accessible from the n8n environment. For example, when n8n runs in Docker Desktop and Ollama runs directly on the host machine, the connection address is typically:
+
+`http://host.docker.internal:11434`
+
+The exact connection address depends on the user's deployment environment.
+
+Once the connection is configured, select the corresponding credential and the `llama3.1:8b` model in the AI extraction node.
+
+Ollama installation, model hosting, and environment-specific networking configuration are the user's responsibility and are outside the scope of this workflow demonstration.
 
 ### Importing the Workflow
 
@@ -137,4 +147,3 @@ ollama pull llama3.1:8b
 The current webhook expects a flat JSON payload containing `subject`, `sender_email`, and `message`.
 
 Use fictional request data when testing. For detailed instructions and expected outcomes, see the [test documentation](tests/README.md).
-
