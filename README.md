@@ -15,7 +15,7 @@ The project demonstrates how AI and workflow automation can reduce repetitive ad
 The workflow follows these steps:
 
 1. **Receive request:** Accepts an incoming translation request through an n8n webhook.
-2. **Prepare request:** Combines the subject and body into a single text input and preserves the sender's email address.
+2. **Prepare request:** Combines the email subject and message into a single text field, preserves the sender's email address, and structures these fields into a JSON object for the LLM to process.
 3. **Extract job details:** Uses a locally hosted LLM through Ollama to extract structured information from the request.
 4. **Parse AI response:** Converts the model's JSON response into structured fields.
 5. **Validate request:** Checks whether required information is present, including the service type and source language. Translation requests must also include a target language.
